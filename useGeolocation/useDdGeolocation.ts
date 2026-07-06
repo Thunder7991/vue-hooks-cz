@@ -1,20 +1,12 @@
 /*
  * @Author: thunderchen
- * @Date: 2025-11-03 16:08:04
- * @LastEditTime: 2025-11-03 16:10:39
- * @email: 853524319@qq.com
- * @Description: 
- */
-/*
- * @Author: thunderchen
  * @Date: 2025-09-03 14:01:39
- * @LastEditTime: 2025-11-03 16:07:23
+ * @LastEditTime: 2026-07-06 14:53:03
  * @email: 853524319@qq.com
  * @Description:  Geolocation Hook: 获取地理位置并转换为 GCJ-02（国测局）坐标
  */
 
-import { ref, reactive, toRaw } from 'vue';
-import useFetchApi from '@/utils/request/useFetchApi';
+import { ref, reactive } from 'vue';
 import * as dd from 'dingtalk-jsapi';
 export const transformWGS84ToGCJ02 = (lng, lat) => {
   const a = 6378245.0; // 长半轴
@@ -73,6 +65,7 @@ export interface PositionState {
 }
 
 export interface UseGeolocationOptions {
+  url?: string;
   enableHighAccuracy?: boolean;
   timeout?: number;
   maximumAge?: number;
@@ -149,103 +142,115 @@ export const useGeolocation = (options: UseGeolocationOptions = {}) => {
     }
   };
 
-  const getLocationOnce = () =>
-    new Promise<PositionState>((resolve, reject) => {
-      loading.value = true;
-      //获取access token
-      useFetchApi(`******`)
-        .post({
+  const getLocationOnce = async () => {
+    if (!options.url) {
+      error.value = '缺少钉钉鉴权接口地址';
+      return Promise.reject(error.value);
+    }
+
+    loading.value = true;
+
+    try {
+      const response = await fetch(options.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           request_body_json: {
             url: window.location.href,
           },
-        })
-        .json()
-        .then(({ data }) => {
-          if (data.value) {
-            console.log(176,data.value)
-            const config = data.value as {
-              jsapiTicket: string;
-              timeStamp: number;
-              agentId: string;
-              corpId: string;
-              sign: string;
-              accessToken: string;
-              url: string;
-              nonceStr: string;
-            };
-            //验证 钉钉
-            dd.config({
-              agentId: config.agentId, // 企业内部应用，该值为企业内部应用的agentId。
-              corpId: config.corpId, //必填，企业ID
-              timeStamp: config.timeStamp, // 必填，生成签名的时间戳
-              nonceStr: config.nonceStr, // 必填，自定义固定字符串。
-              signature: config.sign, // 必填，签名
-              type: 0, //选填。0表示微应用的jsapi,1表示服务窗的jsapi；不填默认为0。该参数从dingtalk.js的0.8.3版本开始支持
-              jsApiList: ['getLocation'], // 必填，需要使用的jsapi列表，注意：不要带dd。
-            });
-            dd.error(function (err) {
-              loading.value = false;
-              if (err.toString().includes('notInDingTalk')) {
-                showToast({
-                  message: '不支持当前环境',
-                  duration: 2000,
-                });
-                error.value = '不支持当前环境';
-                reject(error.value);
-                return 
-              }
-              if (err.errorCode == 29) {
-                showToast({
-                  message: '签名验证失败',
-                  duration: 2000,
-                });
-                error.value = '签名验证失败';
-                reject(error.value);
-              } else {
-                showToast({
-                  message: err.errorMessage,
-                  duration: 2000,
-                });
-                (error.value = err.errorMessage), reject(error.value);
-              }
-            }); //该方法必须带上，用来捕鉴权出现的异常信息，否则不方便排查出现的问题
+        }),
+      });
 
-            dd.ready(function () {
-              dd.getLocation({
-                type: 1,
-                useCache: false,
-                coordinate: '1',
-                withReGeocode: false,
-                cacheTimeout: 30,
-                targetAccuracy: '40',
-                success: (res) => {
-                   loading.value = false;
-                      const { latitude, longitude } = res;
-                if (res.errorCode === 4 && latitude===0 && longitude===0) {
-                         showToast({
-                  message: '定位服务未开启，请先开启定位服务',
-                  duration: 2000,
-                });
-                reject('定位服务未开启，请先开启定位服务');
-                return 
-                  }
-               
-                  // 使用缓存机制设置位置（替代直接赋值）
-                  setPositionWithCache(longitude, latitude);
-                  resolve({ lng: startPosition.lng, lat: startPosition.lat });
-                },
-                fail: (err: any) => {
-                  loading.value = false;
-                  (error.value = err.errorMessage), reject(error.value);
-                },
-                complete: () => {
-                  loading.value = false;
-                },
-              });
-            });
-          }
+      if (!response.ok) {
+        error.value = `钉钉鉴权接口请求失败：${response.status}`;
+        return Promise.reject(error.value);
+      }
+
+      const data = await response.json();
+      const config = (data?.data?.value ?? data?.data ?? data?.value ?? data) as {
+        jsapiTicket: string;
+        timeStamp: number;
+        agentId: string;
+        corpId: string;
+        sign: string;
+        accessToken: string;
+        url: string;
+        nonceStr: string;
+      };
+
+      if (!config) {
+        error.value = '钉钉鉴权接口返回为空';
+        return Promise.reject(error.value);
+      }
+
+      return await new Promise<PositionState>((resolve, reject) => {
+        //验证 钉钉
+        dd.config({
+          agentId: config.agentId, // 企业内部应用，该值为企业内部应用的agentId。
+          corpId: config.corpId, //必填，企业ID
+          timeStamp: config.timeStamp, // 必填，生成签名的时间戳
+          nonceStr: config.nonceStr, // 必填，自定义固定字符串。
+          signature: config.sign, // 必填，签名
+          type: 0, //选填。0表示微应用的jsapi,1表示服务窗的jsapi；不填默认为0。该参数从dingtalk.js的0.8.3版本开始支持
+          jsApiList: ['getLocation'], // 必填，需要使用的jsapi列表，注意：不要带dd。
         });
-    });
+        dd.error(function (err) {
+          loading.value = false;
+          if (err.toString().includes('notInDingTalk')) {
+            error.value = '不支持当前环境';
+            reject(error.value);
+            return;
+          }
+          if (err.errorCode == 29) {
+            error.value = '签名验证失败';
+            reject(error.value);
+          } else {
+            error.value = err.errorMessage;
+            reject(error.value);
+          }
+        }); //该方法必须带上，用来捕鉴权出现的异常信息，否则不方便排查出现的问题
+
+        dd.ready(function () {
+          dd.getLocation({
+            type: 1,
+            useCache: false,
+            coordinate: '1',
+            withReGeocode: false,
+            cacheTimeout: 30,
+            targetAccuracy: '40',
+            success: (res) => {
+              loading.value = false;
+              const { latitude, longitude } = res;
+              if (res.errorCode === 4 && latitude === 0 && longitude === 0) {
+                error.value = '定位服务未开启，请先开启定位服务';
+                reject(error.value);
+                return;
+              }
+
+              // 使用缓存机制设置位置（替代直接赋值）
+              setPositionWithCache(longitude, latitude);
+              resolve({ lng: startPosition.lng, lat: startPosition.lat });
+            },
+            fail: (err: any) => {
+              loading.value = false;
+              (error.value = err.errorMessage), reject(error.value);
+            },
+            complete: () => {
+              loading.value = false;
+            },
+          });
+        });
+      });
+    } catch (err: any) {
+      loading.value = false;
+      if (!error.value) {
+        error.value = err?.message || '钉钉定位失败';
+      }
+      return Promise.reject(error.value);
+    }
+  };
   return {
     // 状态
     loading,
