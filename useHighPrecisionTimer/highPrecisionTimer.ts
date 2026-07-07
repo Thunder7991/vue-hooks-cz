@@ -1,5 +1,5 @@
 
-import type {optionsType} from "hp-time"
+import type { optionsType } from "./hp-time"
 class HighPrecisionTimer {
   options: optionsType;
   isRunning: boolean;

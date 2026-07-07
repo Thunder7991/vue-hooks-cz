@@ -1,6 +1,6 @@
 import { onUnmounted, ref } from "vue";
 import HighPrecisionTimer from "./highPrecisionTimer"
-import type {optionsType} from "hp-time"
+import type { optionsType } from "./hp-time"
 export default function useHighPrecisionTimer(options:optionsType) {
     const remaining = ref(options.duration || 0);
     const isRunning = ref(false);
