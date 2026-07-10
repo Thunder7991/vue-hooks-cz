@@ -6,6 +6,7 @@ Vue 3 composition hooks packaged as a Vite library.
 
 | Hook | Import | Description |
 | --- | --- | --- |
+| [useElAutoScroll](./core/useElAutoScroll/README.md) | `cz-hooks/useElAutoScroll` | Auto scroll hook for Element Plus `el-scrollbar`, with bottom-to-top reset. |
 | [useGeolocation](./core/useGeolocation/README.md) | `cz-hooks/useGeolocation` | Browser geolocation hook with WGS84 and GCJ-02 coordinate state. |
 | [useDdGeolocation](./core/useGeolocation/README.md#dingtalk-geolocation) | `cz-hooks/useDdGeolocation` | DingTalk JSAPI geolocation hook. Requires `dingtalk-jsapi`. |
 | [useHighPrecisionTimer](./core/useHighPrecisionTimer/README.md) | `cz-hooks/useHighPrecisionTimer` | High precision countdown timer based on `performance.now()` and `requestAnimationFrame`. |
@@ -22,6 +23,7 @@ npm install cz-hooks vue
 
 ```ts
 import {
+  useElAutoScroll,
   useGeolocation,
   useHighPrecisionTimer,
   useProviderContext,
@@ -33,6 +35,7 @@ import {
 Subpath imports are also available:
 
 ```ts
+import { useElAutoScroll } from 'cz-hooks/useElAutoScroll';
 import { useGeolocation } from 'cz-hooks/useGeolocation';
 import { useProviderContext } from 'cz-hooks/useProviderInject';
 import { useHighPrecisionTimer } from 'cz-hooks/useHighPrecisionTimer';
