@@ -1,6 +1,6 @@
 # vue-hooks-cz
 
-Vue 3 composition hooks packaged as a Vite library.
+A collection of hooks shaped by everyday development practice, designed to make routine work feel faster, smoother, and a little more effortless. While increasing efficiency, we will also offer you a unique experience.
 
 ## Hooks
 
